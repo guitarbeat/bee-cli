@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CommandContext } from "@/commands/types";
@@ -54,7 +54,7 @@ describe("proxy command", () => {
     );
   });
 
-  it("starts unix socket proxy and forwards token auth", async () => {
+  it("starts unix socket proxy with private permissions and forwards token auth", async () => {
     let seenAuthorization: string | null = null;
     let seenPath = "";
     await saveToken("prod", "proxy-test-token");
@@ -83,8 +83,6 @@ describe("proxy command", () => {
     };
 
     const socketPath = join(tempDir, "local-proxy.sock");
-    writeFileSync(socketPath, "stale");
-
     const proxy = await startProxy(context, { socketPath });
     activeServers.push(proxy);
 
@@ -96,5 +94,29 @@ describe("proxy command", () => {
     expect(response.ok).toBe(true);
     expect(seenPath).toBe("/v1/me");
     expect(seenAuthorization ?? "").toBe("Bearer proxy-test-token");
+    expect(statSync(socketPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("refuses to replace non-socket files", async () => {
+    await saveToken("prod", "proxy-test-token");
+
+    const context: CommandContext = {
+      env: "prod",
+      client: {
+        env: "prod",
+        baseUrl: "http://127.0.0.1:1",
+        isProxy: false,
+        fetch: () => {
+          throw new Error("should not fetch");
+        },
+      },
+    };
+
+    const socketPath = join(tempDir, "not-a-socket.sock");
+    writeFileSync(socketPath, "do not replace");
+
+    await expect(startProxy(context, { socketPath })).rejects.toThrow(
+      "Refusing to replace non-socket file"
+    );
   });
 });
