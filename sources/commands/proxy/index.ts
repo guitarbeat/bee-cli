@@ -4,8 +4,7 @@ import {
   DEFAULT_PROXY_SOCKET_PATH,
   expandHomePath,
 } from "@/utils/proxyAddress";
-import { chmodSync, existsSync, lstatSync, mkdirSync, unlinkSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, unlinkSync } from "node:fs";
 
 const USAGE = "bee proxy [--port N]\nbee proxy --socket [path]";
 const DEFAULT_PORT = 8787;
@@ -107,12 +106,8 @@ export async function startProxy(
     throw new Error('Not logged in. Run "bee login" first.');
   }
 
-  const socketPath = options.socketPath ? prepareSocketPath(options.socketPath) : undefined;
+  const socketPath = options.socketPath ? expandHomePath(options.socketPath) : undefined;
   if (socketPath && existsSync(socketPath)) {
-    const existing = lstatSync(socketPath);
-    if (!existing.isSocket()) {
-      throw new Error(`Refusing to replace non-socket file: ${socketPath}`);
-    }
     unlinkSync(socketPath);
   }
 
@@ -164,10 +159,6 @@ export async function startProxy(
     },
   });
 
-  if (socketPath) {
-    chmodSync(socketPath, 0o600);
-  }
-
   const baseUrl = context.client.baseUrl;
   if (socketPath) {
     console.log(`Proxy listening on unix://${socketPath}`);
@@ -180,12 +171,6 @@ export async function startProxy(
   console.log("Press Ctrl+C to stop.");
 
   return server;
-}
-
-function prepareSocketPath(value: string): string {
-  const socketPath = expandHomePath(value);
-  mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
-  return socketPath;
 }
 
 async function pickPort(requested?: number): Promise<number> {

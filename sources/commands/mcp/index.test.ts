@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createProxyClient } from "@/client";
 import type { CommandContext } from "@/commands/types";
 import { saveToken } from "@/secureStore";
 import { callMcpTool } from "./index";
@@ -72,6 +73,40 @@ describe("mcp command", () => {
     expect(result).toEqual({ id: 1, first_name: "Mcp", last_name: "User" });
     expect(seenPath).toBe("/v1/me");
     expect(seen.authorization).toBe("Bearer mcp-test-token");
+  });
+
+  it("uses existing unix socket proxy client without injecting credentials", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "bee-cli-mcp-socket-"));
+    const socketPath = join(tempDir, "proxy.sock");
+    const seen = {
+      authorization: null as string | null,
+      path: "",
+    };
+
+    const upstream = Bun.serve({
+      unix: socketPath,
+      fetch: (request) => {
+        seen.authorization = request.headers.get("authorization");
+        const url = new URL(request.url);
+        seen.path = `${url.pathname}${url.search}`;
+        return Response.json({ facts: [], next_cursor: null });
+      },
+    });
+    activeServers.push(upstream);
+
+    const context: CommandContext = {
+      env: "prod",
+      client: createProxyClient("prod", { address: socketPath }),
+    };
+
+    const result = await callMcpTool(context, "bee_list_facts", {
+      limit: 2,
+      unconfirmed: true,
+    });
+
+    expect(result).toEqual({ facts: [], next_cursor: null });
+    expect(seen.path).toBe("/v1/facts?limit=2&confirmed=false");
+    expect(seen.authorization).toBeNull();
   });
 
   it("validates tool arguments before calling upstream", async () => {
