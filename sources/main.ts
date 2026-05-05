@@ -6,6 +6,7 @@ import { factsCommand } from "@/commands/facts";
 import { journalsCommand } from "@/commands/journals";
 import { loginCommand } from "@/commands/login";
 import { logoutCommand } from "@/commands/logout";
+import { mcpCommand } from "@/commands/mcp";
 import { meCommand } from "@/commands/me";
 import { nowCommand } from "@/commands/now";
 import { pingCommand } from "@/commands/ping";
@@ -33,6 +34,7 @@ const commands = [
   dailyCommand,
   factsCommand,
   journalsCommand,
+  mcpCommand,
   meCommand,
   searchCommand,
   streamCommand,

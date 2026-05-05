@@ -122,6 +122,8 @@ By default, data commands return markdown. Use `--json` to print raw JSON.
 
 - `proxy` - Start a local Bee API proxy. Options: `--port N`, `--socket [path]`.
 
+- `mcp` - Start a stdio MCP server exposing Bee data tools to local agents without exposing stored credentials.
+
 - `ping` - Run a quick connectivity check. Use `--count N` to repeat.
 
 - `version` - Print the CLI version. Use `--json` for JSON output.
@@ -155,6 +157,23 @@ bee proxy --socket /tmp/bee-proxy.sock
 ```
 
 In socket mode, the CLI removes stale socket files before listening.
+
+### MCP Server for Local Agents
+
+For MCP-capable local agents, use `bee mcp` as a stdio MCP server. The server
+uses the same token or proxy configuration as the CLI, but tools never receive
+or return credentials.
+
+```json
+{
+  "mcpServers": {
+    "bee": {
+      "command": "bee",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
 ## Stream Events
 
